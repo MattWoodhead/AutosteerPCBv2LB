@@ -27,8 +27,8 @@
   //PWM Frequency -> 490hz (default) = 0 and -> 122hz = 1  -> 3921hz = 2
   #define PWM_Frequency 0
 
-  #define NUMPIXELS   13                 //Odd number dont use =0 
-  #define Neopixel_Pin 9
+  #define NUMPIXELS   13                 // Odd number dont use =0 
+  #define Neopixel_Pin 9                 // Note this clashes with IBT2
   #define mmPerLightbarPixel  40         // 40 = 4cm
 
 /////////////////////////////////////////////
