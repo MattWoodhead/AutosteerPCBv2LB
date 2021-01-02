@@ -31,6 +31,8 @@
   #define Neopixel_Pin 5                 // Note this clashes with IBT2
   #define mmPerLightbarPixel  40         // 40 = 4cm
 
+  #define DEBUG 0  // uncomment this to add serial debug output
+
 /////////////////////////////////////////////
 
   #if NUMPIXELS > 0
@@ -178,10 +180,17 @@
 
 void setup()
 { 
+  //set up serial communication
+  Serial.begin(38400);
+  #ifdef DEBUG Serial.println("starting setup");
+  #endif
+  
   //PWM rate settings. Set them both the same!!!!
-
   #if (defined(__AVR_ATmega168__) | defined(__AVR_ATmega328__))   // Abstract diferences between Arduino Nano and the Nucleo 32
     {
+    #ifdef DEBUG Serial.print("Setting up Nano PWM frequency...  ");
+    #endif
+    // if PWM_Frequency == 0 use default nano PWM frequency (490 Hz)
     if (PWM_Frequency == 1) 
     { 
       TCCR2B = TCCR2B & B11111000 | B00000110;    // set timer 2 to 256 for PWM frequency of   122.55 Hz
@@ -193,9 +202,12 @@ void setup()
       TCCR1B = TCCR1B & B11111000 | B00000010;    // set timer 1 to 8 for PWM frequency of  3921.16 Hz
       TCCR2B = TCCR2B & B11111000 | B00000010;    // set timer 2 to 8 for PWM frequency of  3921.16 Hx
     }
+    #ifdef DEBUG Serial.println("Done");
+    #endif
   }
   #else  // otherwise assume it is an STM32 based board
   {
+    Serial.print("Setting up STM32 frequency...  ");
     TIM_TypeDef *Instance1 = (TIM_TypeDef *)pinmap_peripheral(digitalPinToPinName(PWM1_LPWM), PinMap_PWM);
     TIM_TypeDef *Instance2 = (TIM_TypeDef *)pinmap_peripheral(digitalPinToPinName(PWM2_RPWM), PinMap_PWM);
     uint32_t channel1 = STM_PIN_CHANNEL(pinmap_function(digitalPinToPinName(PWM1_LPWM), PinMap_PWM));
@@ -210,6 +222,8 @@ void setup()
     if (PWM_Frequency == 2) { PWM_Freq = 4000 ;}
     pwmTimer1->setPWM(channel1, PWM1_LPWM, PWM_Freq, 0); // 490 Hertz, 0% dutycycle
     pwmTimer2->setPWM(channel2, PWM2_RPWM, PWM_Freq, 0); // 490 Hertz, 0% dutycycle
+    #ifdef DEBUG Serial.println("Done");
+    #endif
   }
   #endif
   
@@ -222,9 +236,9 @@ void setup()
   
   if (aogSettings.CytronDriver) pinMode(PWM2_RPWM, OUTPUT); 
   
-  //set up communication
+  //set up communication 
   Wire.begin();
-  Serial.begin(38400);
+//  Serial.begin(38400);  // moved to top of setup function to provide diagnosics
 
   //50Khz I2C
   #if (defined(__AVR_ATmega168__) | defined(__AVR_ATmega328__))
@@ -241,6 +255,8 @@ void setup()
   //MCP_Write(0x01,0x00);  
   delay(300);
 
+  #ifdef DEBUG Serial.print("Reading EEPROM/FLASH...  ")
+  #endif
   EEPROM.get(0, EEread);              // read identifier
     
   if (EEread != EEP_Ident)   // check on first start and write EEPROM
@@ -256,6 +272,8 @@ void setup()
     EEPROM.get(10, steerSettings);     // read the Settings
     EEPROM.get(40, aogSettings);
   }
+  #ifdef DEBUG Serial.println("Done");
+  #endif
   
   // for PWM High to Low interpolator
   highLowPerDeg = (steerSettings.highPWM - steerSettings.lowPWM) / LOW_HIGH_DEGREES;
@@ -263,35 +281,43 @@ void setup()
   // BNO055 init
   if (aogSettings.BNOInstalled) 
   { 
+    #ifdef DEBUG Serial.println("Initialising BN055")
+    #endif
     IMU.init();  
     IMU.setExtCrystalUse(true);   //use external 32K crystal
+    #ifdef DEBUG Serial.println("Done")
+    #endif
   }  
   	
   if (aogSettings.InclinometerInstalled == 2 )
   { 
-      // MMA8452 (1) Inclinometer
-      MMAinitialized = MMA1C.init();
+    #ifdef DEBUG Serial.println("Initialising GY MMA845x")
+    #endif
+    // MMA8452 (1) Inclinometer
+    MMAinitialized = MMA1C.init();
       
-      if (MMAinitialized)
-      {
-        MMA1C.setDataRate(MMA_12_5hz);
-        MMA1C.setRange(MMA_RANGE_2G);
-        MMA1C.setHighPassFilter(false); 
-      }
-      else Serial.println("MMA init fails!!");
+    if (MMAinitialized)
+    {
+      MMA1C.setDataRate(MMA_12_5hz);
+      MMA1C.setRange(MMA_RANGE_2G);
+      MMA1C.setHighPassFilter(false); 
+    }
+    else Serial.println("MMA init fails!!");
   }
   else if (aogSettings.InclinometerInstalled == 3 )
   { 
-      // MMA8452 (1) Inclinometer
-      MMAinitialized = MMA1D.init();
+    #ifdef DEBUG Serial.println("Initialising MMA8452")
+    #endif
+    // MMA8452 (1) Inclinometer
+    MMAinitialized = MMA1D.init();
         
-      if (MMAinitialized)
-      {
-        MMA1D.setDataRate(MMA_12_5hz);
-        MMA1D.setRange(MMA_RANGE_2G);
-        MMA1D.setHighPassFilter(false); 
-      }
-      else Serial.println("MMA init fails!!");
+    if (MMAinitialized)
+    {
+      MMA1D.setDataRate(MMA_12_5hz);
+      MMA1D.setRange(MMA_RANGE_2G);
+      MMA1D.setHighPassFilter(false); 
+    }
+    else Serial.println("MMA init fails!!");
   }  
 
   #if NUMPIXELS > 0
