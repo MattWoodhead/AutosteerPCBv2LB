@@ -28,7 +28,7 @@
   #define PWM_Frequency 0
 
   #define NUMPIXELS   13                 // Odd number dont use =0 
-  #define Neopixel_Pin 9                 // Note this clashes with IBT2
+  #define Neopixel_Pin 5                 // Note this clashes with IBT2
   #define mmPerLightbarPixel  40         // 40 = 4cm
 
 /////////////////////////////////////////////
@@ -61,7 +61,9 @@
   //--------------------------- Switch Input Pins ------------------------
   #define STEERSW_PIN 6 //PD6
   #define WORKSW_PIN 7  //PD7
-  #define REMOTE_PIN 8  //PB0
+  //#define REMOTE_PIN 8  //PB0
+  #define WORKSW_ENABLE_PIN 8  //PB0
+  #define WORK_LED_PIN 2  //PD2
 
   // MCP23017 I2C address is 0x20(32)
   #define Addr 0x20
@@ -111,7 +113,7 @@
   bool MMAinitialized = false, isRelayActiveHigh = true;
   int header = 0, tempHeader = 0, temp, EEread = 0;
   byte relay = 0, relayHi = 0, uTurn = 0;
-  byte remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0;
+  byte remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0, workSwitchEnabled = 0;
   float distanceFromLine = 0, gpsSpeed = 0;
   
   //steering variables
@@ -178,23 +180,44 @@ void setup()
 { 
   //PWM rate settings. Set them both the same!!!!
 
-  if (PWM_Frequency == 1) 
-  { 
-    TCCR2B = TCCR2B & B11111000 | B00000110;    // set timer 2 to 256 for PWM frequency of   122.55 Hz
-    TCCR1B = TCCR1B & B11111000 | B00000100;    // set timer 1 to 256 for PWM frequency of   122.55 Hz
+  #if (defined(__AVR_ATmega168__) | defined(__AVR_ATmega328__))   // Abstract diferences between Arduino Nano and the Nucleo 32
+    {
+    if (PWM_Frequency == 1) 
+    { 
+      TCCR2B = TCCR2B & B11111000 | B00000110;    // set timer 2 to 256 for PWM frequency of   122.55 Hz
+      TCCR1B = TCCR1B & B11111000 | B00000100;    // set timer 1 to 256 for PWM frequency of   122.55 Hz
+    }
+  
+    else if (PWM_Frequency == 2)
+    {
+      TCCR1B = TCCR1B & B11111000 | B00000010;    // set timer 1 to 8 for PWM frequency of  3921.16 Hz
+      TCCR2B = TCCR2B & B11111000 | B00000010;    // set timer 2 to 8 for PWM frequency of  3921.16 Hx
+    }
   }
-
-  else if (PWM_Frequency == 2)
+  #else  // otherwise assume it is an STM32 based board
   {
-    TCCR1B = TCCR1B & B11111000 | B00000010;    // set timer 1 to 8 for PWM frequency of  3921.16 Hz
-    TCCR2B = TCCR2B & B11111000 | B00000010;    // set timer 2 to 8 for PWM frequency of  3921.16 Hx
-
+    TIM_TypeDef *Instance1 = (TIM_TypeDef *)pinmap_peripheral(digitalPinToPinName(PWM1_LPWM), PinMap_PWM);
+    TIM_TypeDef *Instance2 = (TIM_TypeDef *)pinmap_peripheral(digitalPinToPinName(PWM2_RPWM), PinMap_PWM);
+    uint32_t channel1 = STM_PIN_CHANNEL(pinmap_function(digitalPinToPinName(PWM1_LPWM), PinMap_PWM));
+    uint32_t channel2 = STM_PIN_CHANNEL(pinmap_function(digitalPinToPinName(PWM2_RPWM), PinMap_PWM));
+  
+    HardwareTimer *pwmTimer1 = new HardwareTimer(Instance1);  // Instantiate HardwareTimer object.
+    HardwareTimer *pwmTimer2 = new HardwareTimer(Instance2);
+  
+    // Configure and start PWM at 0%
+    uint8_t PWM_Freq = 490;  // Arduino nano frequency 490 Hz
+    if (PWM_Frequency == 1) { PWM_Freq = 125 ;}
+    if (PWM_Frequency == 2) { PWM_Freq = 4000 ;}
+    pwmTimer1->setPWM(channel1, PWM1_LPWM, PWM_Freq, 0); // 490 Hertz, 0% dutycycle
+    pwmTimer2->setPWM(channel2, PWM2_RPWM, PWM_Freq, 0); // 490 Hertz, 0% dutycycle
   }
+  #endif
   
   //keep pulled high and drag low to activate, noise free safe   
   pinMode(WORKSW_PIN, INPUT_PULLUP); 
   pinMode(STEERSW_PIN, INPUT_PULLUP); 
-  pinMode(REMOTE_PIN, INPUT_PULLUP); 
+  //pinMode(REMOTE_PIN, INPUT_PULLUP); 
+  pinMode(WORKSW_ENABLE_PIN, INPUT_PULLUP); 
   pinMode(DIR1_RL_ENABLE, OUTPUT);
   
   if (aogSettings.CytronDriver) pinMode(PWM2_RPWM, OUTPUT); 
@@ -204,8 +227,16 @@ void setup()
   Serial.begin(38400);
 
   //50Khz I2C
-  TWBR = 144;
-  
+  #if (defined(__AVR_ATmega168__) | defined(__AVR_ATmega328__))
+  {
+    TWBR = 144;
+  }
+//  #else  // If STM32 leave at default 100KHz for now and see how we get on
+//  {
+//    STM32d
+//  }
+  #endif
+
   //PortB configured as output
   //MCP_Write(0x01,0x00);  
   delay(300);
@@ -401,7 +432,17 @@ void loop()
     XeRoll = G * (rollK - Zp) + Xp;     
 
     //read all the switches
-    workSwitch = digitalRead(WORKSW_PIN);  // read work switch
+    workSwitchEnabled = digitalRead(WORKSW_ENABLE_PIN);
+    if (workSwitchEnabled)
+    {
+      workSwitch = digitalRead(WORKSW_PIN);  // read work switch
+      digitalWrite(WORK_LED_PIN, HIGH);
+    }
+    else
+    {
+      workSwitch = 0;  // read work switch
+      digitalWrite(WORK_LED_PIN, LOW);
+    }
     
     if (aogSettings.SteerSwitch == 1) //steer switch on - off
     {
@@ -433,7 +474,8 @@ void loop()
       previous = HIGH;
     }
     
-    remoteSwitch = digitalRead(REMOTE_PIN); //read auto steer enable switch open = 0n closed = Off
+    //remoteSwitch = digitalRead(REMOTE_PIN); //read auto steer enable switch open = 0n closed = Off
+    remoteSwitch = 0;  // I am using the remote switch pin to enable / disable the workswitch
     switchByte = 0;
     switchByte |= (remoteSwitch << 2); //put remote in bit 2
     switchByte |= (steerSwitch << 1);   //put steerswitch status in bit 1 position
@@ -523,15 +565,15 @@ void loop()
   //This runs continuously, not timed //// Serial Receive Data/Settings /////////////////
   delay (5);
 
-  if (encEnable)
-  {
-    thisEnc = digitalRead(REMOTE_PIN);
-    if (thisEnc != lastEnc)
-    {
-      lastEnc = thisEnc;
-      if ( lastEnc) EncoderFunc();
-    }
-  }
+//  if (encEnable)  // Disabled as refers to the remote_pin which I am using for something else (and I dont have an encoder)
+//  {
+//    thisEnc = digitalRead(REMOTE_PIN);
+//    if (thisEnc != lastEnc)
+//    {
+//      lastEnc = thisEnc;
+//      if ( lastEnc) EncoderFunc();
+//    }
+//  }
   
   if (Serial.available() > 0 && !isDataFound && !isSettingFound && !isMachineFound && !isAogSettingsFound) 
   {
@@ -756,14 +798,14 @@ void SendTwoThirty(byte check)
 }
 
 //ISR Steering Wheel Encoder
-  void EncoderFunc()
-  {        
-     if (encEnable) 
-     {
-        pulseCount++; 
-        encEnable = false;
-     }            
-  } 
+//  void EncoderFunc()  // disabled as I do not use the encoder
+//  {        
+//     if (encEnable) 
+//     {
+//        pulseCount++; 
+//        encEnable = false;
+//     }            
+//  } 
 
   void MCP_Write(byte MCPregister, byte MCPdata) 
   {
