@@ -32,6 +32,8 @@
   #define mmPerLightbarPixel  40         // 40 = 4cm
 
   #define DEBUG  // uncomment this to add serial debug output
+  #define DEBUG_LOOP_TIME  // uncomment this to add serial debug output
+  unsigned long loop_time_micros = 0;
 
   // Create DEBUG_PRINT command that only prints to serial if DEBUG is defined at the top of the program
   #ifdef DEBUG
@@ -287,6 +289,10 @@ void loop()
 {
 	// Loop triggers every 100 msec and sends back gyro heading, and roll, steer angle etc	 
 	currentTime = millis();
+
+  #ifdef DEBUG_LOOP_TIME
+    loop_time_micros = micros();
+  #endif
  
 	if (currentTime - lastTime >= LOOP_TIME)
 	{
@@ -433,7 +439,13 @@ void loop()
                 
         pwmDrive = 0; //turn off steering motor
         motorDrive(); //out to motors the pwm value
-     }           
+     }  
+
+    #ifdef DEBUG_LOOP_TIME
+      Serial.print("Loop time (us): ");
+      Serial.println((unsigned long)micros() - loop_time_micros);
+    #endif
+
   	} //end of timed loop
 
   //This runs continuously, not timed //// Serial Receive Data/Settings /////////////////
