@@ -31,7 +31,14 @@
   #define Neopixel_Pin 5                 // Note this clashes with IBT2
   #define mmPerLightbarPixel  40         // 40 = 4cm
 
-  #define DEBUG 0  // uncomment this to add serial debug output
+  #define DEBUG  // uncomment this to add serial debug output
+
+  // Create DEBUG_PRINT command that only prints to serial if DEBUG is defined at the top of the program
+  #ifdef DEBUG
+   #define DEBUG_PRINT(x)  Serial.println (x)
+  #else
+   #define DEBUG_PRINT(x)
+  #endif
 
 /////////////////////////////////////////////
 
@@ -77,22 +84,9 @@
   #include "zADS1015.h"
   Adafruit_ADS1115 ads;     // Use this for the 16-bit version ADS1115
 
-  //GY-45 (1C)
-  //installed Sparkfun, Adafruit MMA8451 (1D)   
-  #include "MMA8452_AOG.h"  //MMA inclinometer
+  #include "CMPS14_AOG.h"  // I have replaced inclinometer = 2 with the CMPS14 module instead of the GY MMA845x module
+  CMPS14 CMPS14_IMU(CMPS14_ADDRESS);
   
-  MMA8452 MMA1D(0x1D);   
-  MMA8452 MMA1C(0x1C);
-      
-  uint16_t x_ , y_ , z_;        
-
-  #include "BNO055_AOG.h"  // BNO055 IMU
-  #define A 0X28             //I2C address selection pin LOW
-  #define B 0x29             //                          HIGH
-  #define RAD2GRAD 57.2957795
-  BNO055 IMU(A);  // create an instance
-  
- 
   //loop time variables in microseconds  
   const unsigned int LOOP_TIME = 40;      
   unsigned long lastTime = LOOP_TIME;
@@ -101,18 +95,11 @@
   byte serialResetTimer = 100; //if serial buffer is getting full, empty it
   
   //inclinometer variables
-  float rollK = 0, Pc = 0.0, G = 0.0, P = 1.0, Xp = 0.0, Zp = 0.0;
-  float XeRoll = 0;
-  float lastRoll=0, diff=0;
-  int roll = 0;
-
-  //Kalman control variances
-  const float varRoll = 0.2; // variance, larger is more filtering
-  const float varProcess = 0.01; //process, smaller is more filtering
+  float roll, heading;
   
   //Program flow
   bool isDataFound = false, isSettingFound = false, isMachineFound=false, isAogSettingsFound = false; 
-  bool MMAinitialized = false, isRelayActiveHigh = true;
+  bool CMPS14initialized = false, isRelayActiveHigh = true;
   int header = 0, tempHeader = 0, temp, EEread = 0;
   byte relay = 0, relayHi = 0, uTurn = 0;
   byte remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0, workSwitchEnabled = 0;
@@ -124,7 +111,7 @@
   int steeringPosition = 0; //from steering sensor
   float steerAngleError = 0; //setpoint - actual
   
-    //pwm variables
+  //pwm variables
   int pwmDrive = 0, pwmDisplay = 0;
   float pValue = 0;
   float errorAbs = 0;
@@ -135,11 +122,7 @@
   byte reading;
   byte previous = 0;
 
-  byte pulseCount = 0; // Steering Wheel Encoder
-  bool encEnable = false; //debounce flag
-  byte thisEnc = 0, lastEnc = 0;
-
-     //Variables for settings  
+   //Variables for settings  
    struct Storage {
       float Ko = 0.0f;  //overall gain
       float Kp = 0.0f;  //proportional gain
@@ -182,14 +165,12 @@ void setup()
 { 
   //set up serial communication
   Serial.begin(38400);
-  #ifdef DEBUG Serial.println("starting setup");
-  #endif
+  DEBUG_PRINT("starting setup");
   
   //PWM rate settings. Set them both the same!!!!
   #if (defined(__AVR_ATmega168__) | defined(__AVR_ATmega328__))   // Abstract diferences between Arduino Nano and the Nucleo 32
     {
-    #ifdef DEBUG Serial.print("Setting up Nano PWM frequency...  ");
-    #endif
+    DEBUG_PRINT("Setting up Nano PWM frequency...  ");
     // if PWM_Frequency == 0 use default nano PWM frequency (490 Hz)
     if (PWM_Frequency == 1) 
     { 
@@ -202,8 +183,7 @@ void setup()
       TCCR1B = TCCR1B & B11111000 | B00000010;    // set timer 1 to 8 for PWM frequency of  3921.16 Hz
       TCCR2B = TCCR2B & B11111000 | B00000010;    // set timer 2 to 8 for PWM frequency of  3921.16 Hx
     }
-    #ifdef DEBUG Serial.println("Done");
-    #endif
+    DEBUG_PRINT("Done");
   }
   #else  // otherwise assume it is an STM32 based board
   {
@@ -217,13 +197,12 @@ void setup()
     HardwareTimer *pwmTimer2 = new HardwareTimer(Instance2);
   
     // Configure and start PWM at 0%
-    uint8_t PWM_Freq = 490;  // Arduino nano frequency 490 Hz
+    int16_t PWM_Freq = 490;  // Arduino nano frequency 490 Hz
     if (PWM_Frequency == 1) { PWM_Freq = 125 ;}
     if (PWM_Frequency == 2) { PWM_Freq = 4000 ;}
     pwmTimer1->setPWM(channel1, PWM1_LPWM, PWM_Freq, 0); // 490 Hertz, 0% dutycycle
     pwmTimer2->setPWM(channel2, PWM2_RPWM, PWM_Freq, 0); // 490 Hertz, 0% dutycycle
-    #ifdef DEBUG Serial.println("Done");
-    #endif
+    DEBUG_PRINT("Done");
   }
   #endif
   
@@ -255,8 +234,7 @@ void setup()
   //MCP_Write(0x01,0x00);  
   delay(300);
 
-  #ifdef DEBUG Serial.print("Reading EEPROM/FLASH...  ")
-  #endif
+  DEBUG_PRINT("Reading EEPROM/FLASH...  ");
   EEPROM.get(0, EEread);              // read identifier
     
   if (EEread != EEP_Ident)   // check on first start and write EEPROM
@@ -272,53 +250,23 @@ void setup()
     EEPROM.get(10, steerSettings);     // read the Settings
     EEPROM.get(40, aogSettings);
   }
-  #ifdef DEBUG Serial.println("Done");
-  #endif
+  DEBUG_PRINT("Done");
   
   // for PWM High to Low interpolator
   highLowPerDeg = (steerSettings.highPWM - steerSettings.lowPWM) / LOW_HIGH_DEGREES;
 
-  // BNO055 init
-  if (aogSettings.BNOInstalled) 
-  { 
-    #ifdef DEBUG Serial.println("Initialising BN055")
-    #endif
-    IMU.init();  
-    IMU.setExtCrystalUse(true);   //use external 32K crystal
-    #ifdef DEBUG Serial.println("Done")
-    #endif
-  }  
-  	
-  if (aogSettings.InclinometerInstalled == 2 )
-  { 
-    #ifdef DEBUG Serial.println("Initialising GY MMA845x")
-    #endif
-    // MMA8452 (1) Inclinometer
-    MMAinitialized = MMA1C.init();
-      
-    if (MMAinitialized)
-    {
-      MMA1C.setDataRate(MMA_12_5hz);
-      MMA1C.setRange(MMA_RANGE_2G);
-      MMA1C.setHighPassFilter(false); 
-    }
-    else Serial.println("MMA init fails!!");
+  DEBUG_PRINT("Initialising CMPS14");
+  // CMPS14 IMU
+  CMPS14initialized = CMPS14_IMU.init();
+  if (CMPS14initialized)
+  {
+    DEBUG_PRINT("CMPS14 software version: "); // print software version
+    DEBUG_PRINT(CMPS14initialized);
   }
-  else if (aogSettings.InclinometerInstalled == 3 )
-  { 
-    #ifdef DEBUG Serial.println("Initialising MMA8452")
-    #endif
-    // MMA8452 (1) Inclinometer
-    MMAinitialized = MMA1D.init();
-        
-    if (MMAinitialized)
-    {
-      MMA1D.setDataRate(MMA_12_5hz);
-      MMA1D.setRange(MMA_RANGE_2G);
-      MMA1D.setHighPassFilter(false); 
-    }
-    else Serial.println("MMA init fails!!");
-  }  
+  else
+  {
+    Serial.println("CMPS14 init fails!!");
+  }
 
   #if NUMPIXELS > 0
     pixels.begin();
@@ -329,9 +277,9 @@ void setup()
       levelcolor[i][0]=255; levelcolor[i][1]=0; levelcolor[i][2]=0; //Red
     }
     levelcolor[centerpixel][0]=10;levelcolor[centerpixel][1]=10;levelcolor[centerpixel][2]=0; //Center Yellow
-  #endif
   
   Serial.println("Waiting for AgOpenGPS");
+  #endif
 
 }// End of Setup
 
@@ -343,10 +291,7 @@ void loop()
 	if (currentTime - lastTime >= LOOP_TIME)
 	{
 		lastTime = currentTime;
-
-    //reset debounce
-    encEnable = true;
-   
+  
     //If connection lost to AgOpenGPS, the watchdog will count up and turn off steering
     if (watchdogTimer++ > 250) watchdogTimer = 12;
 
@@ -357,105 +302,16 @@ void loop()
       serialResetTimer = 0;
     }
     
-    if (aogSettings.BNOInstalled)
-        IMU.readIMU();
-    
-    //DOGS2 inclinometer
-    if (aogSettings.InclinometerInstalled == 1)
+    // CMPS14 IMU           
+    if (CMPS14initialized)
     {
-        roll = ((ads.readADC_SingleEnded(2))); // 24,000 to 2700
-        roll = (roll - 13300);
-        roll = roll >> 5; //-375 to 375 -25 deg to +25 deg
+      roll = CMPS14_IMU.getRoll();
+      heading = CMPS14_IMU.getHeading();
 
-          // limit the differential  
-          diff = roll - lastRoll;
-          if (diff > ROLL_DSP_STEP ) roll = lastRoll + ROLL_DSP_STEP;      
-          else if (diff < -ROLL_DSP_STEP) roll = lastRoll - ROLL_DSP_STEP;
-          lastRoll = roll;    
-
-        //if not positive when rolling to the right
-        if (aogSettings.InvertRoll)
-          roll *= -1.0; 
-
-        //for Kalman            
-        rollK = roll;        
-    }  //-----------------------------------------------------------------------------
-    
-    // MMA8452 Inclinometer (1C)           
-    else if (aogSettings.InclinometerInstalled == 2)
-    {
-        if (MMAinitialized)
-        {
-          MMA1C.getRawData(&x_, &y_, &z_);
-
-          if (aogSettings.UseMMA_X_Axis) 
-              roll= x_; //Conversion uint to int
-          else roll = y_;
-                   
-          //16 counts per degree (good for 0 - +/-18 degrees) 
-          if (roll > 4200)  roll =  4200;
-          if (roll < -4200) roll = -4200;
-          roll = roll >> 3;  //divide by 8  +-525
-          
-          // limit the differential  
-          diff = roll - lastRoll;
-          if (diff > ROLL_DSP_STEP ) roll = lastRoll + ROLL_DSP_STEP;      
-          else if (diff < -ROLL_DSP_STEP) roll = lastRoll - ROLL_DSP_STEP;
-          lastRoll = roll; 
-
-          //divide by 2 -268 to +268    -17 to +17 degrees
-          roll = roll >> 1;
-      
-          //if not positive when rolling to the right
-          if (aogSettings.InvertRoll)
-            roll *= -1.0;   
-      
-          //divide by 16
-          rollK = roll;
-        }
-    } //----------------------------------------------------------------------
-    
-    // MMA8452 Inclinometer (1D)        
-    else if (aogSettings.InclinometerInstalled == 3)
-    {
-        if (MMAinitialized)
-        {
-          MMA1D.getRawData(&x_, &y_, &z_);
-
-          if (aogSettings.UseMMA_X_Axis) 
-              roll= x_; //Conversion uint to int
-          else roll = y_;
-                   
-          //16 counts per degree (good for 0 - +/-18 degrees) 
-          if (roll > 4200)  roll =  4200;
-          if (roll < -4200) roll = -4200;
-          roll = roll >> 3;  //divide by 8  +-525
-          
-          // limit the differential  
-          diff = roll - lastRoll;
-          if (diff > ROLL_DSP_STEP ) roll = lastRoll + ROLL_DSP_STEP;      
-          else if (diff < -ROLL_DSP_STEP) roll = lastRoll - ROLL_DSP_STEP;
-          lastRoll = roll; 
-
-          //divide by 2 -268 to +268    -17 to +17 degrees
-          roll = roll >> 1;
-      
-          //if not positive when rolling to the right
-          if (aogSettings.InvertRoll)
-            roll *= -1.0;   
-      
-          //divide by 16
-          rollK = roll;
-        }
-    } //---------------------------------------------------------------------------------
-                
-    //Kalman filter
-    Pc = P + varProcess;
-    G = Pc / (Pc + varRoll);
-    P = (1 - G) * Pc;
-    Xp = XeRoll;
-    Zp = Xp;
-    XeRoll = G * (rollK - Zp) + Xp;     
+      //if not positive when rolling to the right
+      if (aogSettings.InvertRoll)
+        roll *= -1.0;   
+    }
 
     //read all the switches
     workSwitchEnabled = digitalRead(WORKSW_ENABLE_PIN);
@@ -492,16 +348,9 @@ void loop()
       }      
       previous = reading;
     }
-    
-    if (aogSettings.ShaftEncoder && pulseCount >= aogSettings.PulseCountMax ) 
-    {
-      steerSwitch = 1; // reset values like it turned off
-      currentState = 1;
-      previous = HIGH;
-    }
-    
+  
     //remoteSwitch = digitalRead(REMOTE_PIN); //read auto steer enable switch open = 0n closed = Off
-    remoteSwitch = 0;  // I am using the remote switch pin to enable / disable the workswitch
+    remoteSwitch = 0;  // I am using the remote switch pin to enable / disable the workswitch - therefore set this value to 0 manually
     switchByte = 0;
     switchByte |= (remoteSwitch << 2); //put remote in bit 2
     switchByte |= (steerSwitch << 1);   //put steerswitch status in bit 1 position
@@ -584,23 +433,12 @@ void loop()
                 
         pwmDrive = 0; //turn off steering motor
         motorDrive(); //out to motors the pwm value
-        pulseCount=0;
      }           
   	} //end of timed loop
 
   //This runs continuously, not timed //// Serial Receive Data/Settings /////////////////
   delay (5);
 
-//  if (encEnable)  // Disabled as refers to the remote_pin which I am using for something else (and I dont have an encoder)
-//  {
-//    thisEnc = digitalRead(REMOTE_PIN);
-//    if (thisEnc != lastEnc)
-//    {
-//      lastEnc = thisEnc;
-//      if ( lastEnc) EncoderFunc();
-//    }
-//  }
-  
   if (Serial.available() > 0 && !isDataFound && !isSettingFound && !isMachineFound && !isAogSettingsFound) 
   {
     int temp = Serial.read();
@@ -629,17 +467,17 @@ void loop()
 
     //auto Steer is off if 32020,Speed is too slow, motor pos or footswitch open
     if (distanceFromLine == 32020 | distanceFromLine == 32000 
-          | gpsSpeed < aogSettings.minSteerSpeed | gpsSpeed > aogSettings.maxSteerSpeed 
-          | steerSwitch == 1 )
-      {
-       watchdogTimer = 12; //turn off steering motor
-       serialResetTimer = 0; //if serial buffer is getting full, empty it
-      }
+        | gpsSpeed < aogSettings.minSteerSpeed | gpsSpeed > aogSettings.maxSteerSpeed 
+        | steerSwitch == 1 )
+    {
+     watchdogTimer = 12; //turn off steering motor
+     serialResetTimer = 0; //if serial buffer is getting full, empty it
+    }
     else          //valid conditions to turn on autosteer
-      {
-       watchdogTimer = 0;  //reset watchdog
-       serialResetTimer = 0; //if serial buffer is getting full, empty it
-      }      
+    {
+     watchdogTimer = 0;  //reset watchdog
+     serialResetTimer = 0; //if serial buffer is getting full, empty it
+    }      
     Serial.read();
     Serial.read();
 
@@ -647,33 +485,18 @@ void loop()
 
           //Serial Send to agopenGPS **** you must send 10 numbers ****
       Serial.print("127,253,");
-      Serial.print((int)(steerAngleActual * 100)); //The actual steering angle in degrees
+      Serial.print((int)(steerAngleActual * 100));  //The actual steering angle in degrees
       Serial.print(",");
-      Serial.print((int)(steerAngleSetPoint * 100));   //the setpoint originally sent
+      Serial.print((int)(steerAngleSetPoint * 100));  //the setpoint originally sent
       Serial.print(",");
-  
-      // *******  if there is no gyro installed send 0
-      if (aogSettings.BNOInstalled)
-      {
-        Serial.print((int)IMU.euler.head);       //heading in degrees * 16 from BNO
-        Serial.print(",");
-      }
-      else
-        Serial.print("0,");                 //No IMU installed      
-      
-      //*******  if no roll is installed, send 0
-      if (aogSettings.InclinometerInstalled)
-      {
-        Serial.print((int)XeRoll);          //roll in degrees * 16
-        Serial.print(",");                 //no Inclinometer installed
-      }
-      else  
-        Serial.print("0,"); 
-
+      Serial.print(heading);  // heading in degrees from CMPS14
+      Serial.print(",");
+      Serial.print(roll);  // roll in degrees from CMPS14
+      Serial.print(",");
       //the status of switch inputs
-      Serial.print(switchByte); //steering switch status 
+      Serial.print(switchByte);  //steering switch status 
       Serial.print(","); 
-      Serial.print(pwmDisplay); //steering switch status 
+      Serial.print(pwmDisplay);  //steering switch status 
       Serial.println(",0,0");
       Serial.flush();   // flush out buffer
   }
