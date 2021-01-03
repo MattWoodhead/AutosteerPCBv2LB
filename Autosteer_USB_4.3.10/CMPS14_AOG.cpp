@@ -6,7 +6,7 @@ bool CMPS14::init()
   Wire.write(HEADING_MSB);
   Wire.requestFrom(CMPS14_ADDRESS, 1);
   softwareVersion = Wire.read();
-  if (softwareVersion)
+  if (softwareVersion > 1)
   {
 	  return true;
   }

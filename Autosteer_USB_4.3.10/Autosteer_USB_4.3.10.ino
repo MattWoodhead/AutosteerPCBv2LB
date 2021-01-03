@@ -29,11 +29,10 @@
 
   #define NUMPIXELS   13                 // Odd number dont use =0 
   #define Neopixel_Pin 5                 // Note this clashes with IBT2
-  #define mmPerLightbarPixel  40         // 40 = 4cm
+  #define mmPerLightbarPixel  20         // 40 = 4cm
 
   #define DEBUG  // uncomment this to add serial debug output
   #define DEBUG_LOOP_TIME  // uncomment this to add serial debug output
-  unsigned long loop_time_micros = 0;
 
   // Create DEBUG_PRINT command that only prints to serial if DEBUG is defined at the top of the program
   #ifdef DEBUG
@@ -290,10 +289,6 @@ void loop()
 	// Loop triggers every 100 msec and sends back gyro heading, and roll, steer angle etc	 
 	currentTime = millis();
 
-  #ifdef DEBUG_LOOP_TIME
-    loop_time_micros = micros();
-  #endif
- 
 	if (currentTime - lastTime >= LOOP_TIME)
 	{
 		lastTime = currentTime;
@@ -443,7 +438,7 @@ void loop()
 
     #ifdef DEBUG_LOOP_TIME
       Serial.print("Loop time (us): ");
-      Serial.println((unsigned long)micros() - loop_time_micros);
+      Serial.println((unsigned long)millis() - lastTime);
     #endif
 
   	} //end of timed loop
@@ -668,15 +663,15 @@ void SendTwoThirty(byte check)
 //     }            
 //  } 
 
-  void MCP_Write(byte MCPregister, byte MCPdata) 
-  {
-    // -----------------
-  
-    Wire.beginTransmission(Addr);
-    Wire.write(MCPregister);
-    Wire.write(MCPdata);
-    Wire.endTransmission();
-  }
+//void MCP_Write(byte MCPregister, byte MCPdata) 
+//{
+//  // -----------------
+//
+//  Wire.beginTransmission(Addr);
+//  Wire.write(MCPregister);
+//  Wire.write(MCPdata);
+//  Wire.endTransmission();
+//}
 
 void lightbar(float distanceFromLine ){
   int level = constrain (distanceFromLine / mmPerLightbarPixel , -centerpixel ,centerpixel);
