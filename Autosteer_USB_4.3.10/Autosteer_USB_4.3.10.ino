@@ -31,8 +31,8 @@
   #define Neopixel_Pin 5                 // Note this clashes with IBT2
   #define mmPerLightbarPixel  20         // 40 = 4cm
 
-  #define DEBUG  // uncomment this to add serial debug output
-  #define DEBUG_LOOP_TIME  // uncomment this to add serial debug output
+  //#define DEBUG  // uncomment this to add serial debug output
+  //#define DEBUG_LOOP_TIME  // uncomment this to add serial debug output
 
   // Create DEBUG_PRINT command that only prints to serial if DEBUG is defined at the top of the program
   #ifdef DEBUG
@@ -437,7 +437,7 @@ void loop()
      }  
 
     #ifdef DEBUG_LOOP_TIME
-      Serial.print("Loop time (us): ");
+      Serial.print("Loop time (ms): ");
       Serial.println((unsigned long)millis() - lastTime);
     #endif
 
