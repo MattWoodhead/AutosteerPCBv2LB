@@ -647,31 +647,9 @@ void SendTwoThirty(byte check)
     
     //version in AOG ex. v4.1.13 -> 4+1+13=18
     Serial.print(aogVersion);  
-     
     Serial.println(",0,0,0,0,0,0");
-    
     Serial.flush();   
 }
-
-//ISR Steering Wheel Encoder
-//  void EncoderFunc()  // disabled as I do not use the encoder
-//  {        
-//     if (encEnable) 
-//     {
-//        pulseCount++; 
-//        encEnable = false;
-//     }            
-//  } 
-
-//void MCP_Write(byte MCPregister, byte MCPdata) 
-//{
-//  // -----------------
-//
-//  Wire.beginTransmission(Addr);
-//  Wire.write(MCPregister);
-//  Wire.write(MCPdata);
-//  Wire.endTransmission();
-//}
 
 void lightbar(float distanceFromLine ){
   int level = constrain (distanceFromLine / mmPerLightbarPixel , -centerpixel ,centerpixel);
