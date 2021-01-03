@@ -262,7 +262,7 @@ void setup()
   if (CMPS14initialized)
   {
     DEBUG_PRINT("CMPS14 software version: "); // print software version
-    DEBUG_PRINT(CMPS14initialized);
+    DEBUG_PRINT(CMPS14_IMU.softwareVersion);
   }
   else
   {
