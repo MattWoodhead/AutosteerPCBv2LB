@@ -28,5 +28,9 @@ Using the library manager, search for "Neopixel". Find the library in the result
 ### Arduino Nano
 If you are using the AgOpenGPS PCB, the WS2812B strip may get its 5V supply from the PCB power supply. This is not a problem for a 5V Nano, but if you use a 3.3V Nano or one of the form factor compatible boards (such as the ST Nucleo STM32G431) the WS2812B LEDs can behave erratically. This is due to a requirement for the data signal to be >0.7x the supply voltage. This problem can be solved by placing a diode between the 5V supply from the PCB and the WS2812 strip to cause a 0.7V drop of the supply to 4.3V.
 
+<p align="center">
+<img src="https://github.com/MattWoodhead/AutosteerPCBv2LB/resources/diode_trick.png" width="400">
+</p>
+
 ### Capacitor
 If you have a large string of LEDs that have high brightness settings, the Nano (or similar microcontroller) can be overwhelmed by the initial current spike when the LEDs are first powered on. This can be solved by placing a large electrolytic capacitor (220 to 1000 uF) between the 5V and 0V supply to the LED strip. If you use the AgOpenGPS PCB to supply the power to the LEDs and the m,icrocontroller is only supplying the control signal, this should not be a problem.
