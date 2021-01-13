@@ -11,16 +11,16 @@ The master branch is as close to the standard 4.3.10 arduino file as possible.
 ## Software
 ### Installing the Adafruit_Neopixel library
 
-Open the [Arduino client](https://www.arduino.cc/en/software) (version 1.12 or higher is recomended), and open the Tools menu. Select the "Manage LKibraries..." option:
+Open the [Arduino client](https://www.arduino.cc/en/software) (version 1.12 or higher is recomended), and open the Tools menu. Select the "Manage Libraries..." option:
 
 <p align="center">
-<img src="https://github.com/MattWoodhead/AutosteerPCBv2LB/resources/install_arduino_library.png" height="400">
+<img src="https://github.com/MattWoodhead/AutosteerPCBv2LB/blob/master/resources/install_arduino_library.png" height="400">
 </p>
 
 Using the library manager, search for "Neopixel". Find the library in the results called "Adafruit Neopixel" as shown in the third item in the window below. Note that there are several libraries with similar names - for the Arduino Nano the standard Adafruit Neopixel library is the correct one.
 
 <p align="center">
-<img src="https://github.com/MattWoodhead/AutosteerPCBv2LB/resources/install_neopixel_lib.png" height="400">
+<img src="https://github.com/MattWoodhead/AutosteerPCBv2LB/blob/master/resources/install_neopixel_lib.png" height="400">
 </p>
 
 
@@ -29,7 +29,7 @@ Using the library manager, search for "Neopixel". Find the library in the result
 If you are using the AgOpenGPS PCB, the WS2812B strip may get its 5V supply from the PCB power supply. This is not a problem for a 5V Nano, but if you use a 3.3V Nano or one of the form factor compatible boards (such as the ST Nucleo STM32G431) the WS2812B LEDs can behave erratically. This is due to a requirement for the data signal to be >0.7x the supply voltage. This problem can be solved by placing a diode between the 5V supply from the PCB and the WS2812 strip to cause a 0.7V drop of the supply to 4.3V.
 
 <p align="center">
-<img src="https://github.com/MattWoodhead/AutosteerPCBv2LB/resources/diode_trick.png" width="400">
+<img src="https://github.com/MattWoodhead/AutosteerPCBv2LB/blob/master/resources/diode_trick.png" width="400">
 </p>
 
 ### Capacitor
