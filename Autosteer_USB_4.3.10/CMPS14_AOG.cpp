@@ -1,3 +1,10 @@
+/*
+CMPS14_AOG.cpp
+written for https://github.com/MattWoodhead/AutosteerPCBv2LB
+copyright 2020 Matt Woodhead
+GNU GPL v3.0
+*/
+
 #include "CMPS14_AOG.h"
 
 bool CMPS14::init()
