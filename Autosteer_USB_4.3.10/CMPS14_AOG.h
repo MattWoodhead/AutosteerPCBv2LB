@@ -1,3 +1,10 @@
+/*
+CMPS14_AOG.h
+written for https://github.com/MattWoodhead/AutosteerPCBv2LB
+copyright 2020 Matt Woodhead
+GNU GPL v3.0
+*/
+
 #ifndef CMPS14_AOG_H_
 #define CMPS14_AOG_H_
 
