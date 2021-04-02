@@ -5,8 +5,9 @@ This is a porting of mnltake's lightbar code to the latest version of the AgOpen
 
 Requires the [Adafruit Neopixel](https://github.com/adafruit/Adafruit_NeoPixel) library (version 1.4 or higher)
 
-The master branch is as close to the standard 4.3.10 arduino file as possible.
+**Select your AOG version using the branches in github**
 
+---
 
 ## Software
 ### Installing the Adafruit_Neopixel library
