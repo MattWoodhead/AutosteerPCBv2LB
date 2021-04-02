@@ -1,3 +1,7 @@
+# !
+# Version 5.0.0 AOG Arduino Code is WIP!
+# !
+
 # AutosteerPCBv2LB
 forked from  mnltake/AutosteerPCBv2LB
 
