@@ -34,4 +34,4 @@ If you are using the AgOpenGPS PCB, the WS2812B strip may get its 5V supply from
 </p>
 
 ### Capacitor
-If you have a large string of LEDs that have high brightness settings, the Nano (or similar microcontroller) can be overwhelmed by the initial current spike when the LEDs are first powered on. This can be solved by placing a large electrolytic capacitor (220 to 1000 uF) between the 5V and 0V supply to the LED strip. If you use the AgOpenGPS PCB to supply the power to the LEDs and the m,icrocontroller is only supplying the control signal, this should not be a problem.
+If you have a large string of LEDs that have high brightness settings, the Nano (or similar microcontroller) can be overwhelmed by the initial current spike when the LEDs are first powered on. This can be solved by placing a large electrolytic capacitor (220 to 1000 uF) between the 5V and 0V supply to the LED strip. If you use the AgOpenGPS PCB to supply the power to the LEDs and the microcontroller is only supplying the control signal, this should not be a problem.
