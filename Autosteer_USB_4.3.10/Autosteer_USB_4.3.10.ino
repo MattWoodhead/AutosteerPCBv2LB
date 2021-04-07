@@ -207,7 +207,7 @@ void setup()
   }
   #else  // otherwise assume it is an STM32 based board
   {
-    Serial.print("Setting up STM32 frequency...  ");
+    Serial.println("Setting up STM32 frequency...  ");
     TIM_TypeDef *Instance1 = (TIM_TypeDef *)pinmap_peripheral(digitalPinToPinName(PWM1_LPWM), PinMap_PWM);
     TIM_TypeDef *Instance2 = (TIM_TypeDef *)pinmap_peripheral(digitalPinToPinName(PWM2_RPWM), PinMap_PWM);
     uint32_t channel1 = STM_PIN_CHANNEL(pinmap_function(digitalPinToPinName(PWM1_LPWM), PinMap_PWM));
@@ -237,7 +237,6 @@ void setup()
   
   //set up communication 
   Wire.begin();
-//  Serial.begin(38400);  // moved to top of setup function to provide diagnosics
 
   //50Khz I2C
   #if (defined(__AVR_ATmega168__) | defined(__AVR_ATmega328__))
