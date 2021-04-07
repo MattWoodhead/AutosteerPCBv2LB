@@ -41,6 +41,26 @@
    #define DEBUG_PRINT(x)
   #endif
 
+  // Address of CMPS14 shifted right one bit for arduino wire library
+  #define CMPS14_ADDRESS 0x60
+  int Heading16x = 0;
+  int Roll16x = 0;
+
+  // BNO08x definitions
+  #include "BNO08x_AOG.h"
+  #define REPORT_INTERVAL 90 //Report interval in ms (same as the delay at the bottom)
+  const byte bno08xAddresses[] = {0x4A,0x4B};
+  const int nrBNO08xAdresses = sizeof(bno08xAddresses)/sizeof(bno08xAddresses[0]);
+  byte bno08xAddress;
+  BNO080 bno08x;
+  float bno08xHeading = 0;
+  float bno08xRoll = 0;
+  float bno08xPitch = 0;
+
+  // booleans to see if we are using CMPS or BNO08x
+  bool useCMPS = false;
+  bool useBNO08x = false;
+
 /////////////////////////////////////////////
 
   #if NUMPIXELS > 0
@@ -148,9 +168,8 @@
       
       byte BNOInstalled = 0;
       byte InclinometerInstalled = 2;   // set to 0 for none
-                                        // set to 1 if DOGS2 Inclinometer is installed and connected to ADS pin A2
-                                        // set to 2 if MMA8452 installed GY-45 (1C)
-                                        // set to 3 if MMA8452 installed Sparkfun, Adafruit MMA8451 (1D)      
+                                        // set to 1 if BNO085 (DOGS2 in AOG)
+                                        // set to 2 for CMPS14 (MMA8452 in AOG)
       byte maxSteerSpeed = 20;
       byte minSteerSpeed = 1;
       byte PulseCountMax = 5; 
@@ -256,17 +275,74 @@ void setup()
   // for PWM High to Low interpolator
   highLowPerDeg = (steerSettings.highPWM - steerSettings.lowPWM) / LOW_HIGH_DEGREES;
 
-  DEBUG_PRINT("Initialising CMPS14");
-  // CMPS14 IMU
-  CMPS14initialized = CMPS14_IMU.init();
-  if (CMPS14initialized)
+  if (aogSettings.InclinometerInstalled == 1)
   {
-    DEBUG_PRINT("CMPS14 software version: "); // print software version
-    DEBUG_PRINT(CMPS14_IMU.softwareVersion);
+    for(int i = 0; i < nrBNO08xAdresses; i++)
+    {
+      bno08xAddress = bno08xAddresses[i];
+      
+      Serial.print("\r\nChecking for BNO08X on ");
+      Serial.println(bno08xAddress, HEX);
+      Wire.beginTransmission(bno08xAddress);
+      int error = Wire.endTransmission();
+  
+      if (error == 0)
+      {
+        Serial.println("Error = 0");
+        Serial.print("BNO08X ADDRESs: 0x");
+        Serial.println(bno08xAddress, HEX);
+        Serial.println("BNO08X Ok.");
+        
+        // Initialize BNO080 lib        
+        if (bno08x.begin(bno08xAddress))
+        {
+          Wire.setClock(400000); //Increase I2C data rate to 400kHz
+
+          // Use gameRotationVector
+          bno08x.enableGameRotationVector(REPORT_INTERVAL); //Send data update every REPORT_INTERVAL in ms for BNO085
+
+          // Retrieve the getFeatureResponse report to check if Rotation vector report is corectly enable
+          if (bno08x.getFeatureResponseAvailable() == true)
+          {
+            if (bno08x.checkReportEnable(SENSOR_REPORTID_GAME_ROTATION_VECTOR, REPORT_INTERVAL) == false) bno08x.printGetFeatureResponse();
+
+            // Break out of loop
+            useBNO08x = true;
+            break;
+          }
+          else 
+          {
+            Serial.println("BNO08x init fails!!");
+          }
+        }
+        else
+        {
+          Serial.println("BNO080 not detected at given I2C address.");
+        }
+      }
+      else 
+      {
+        Serial.println("Error = 4");
+        Serial.println("BNO08X not Connected or Found"); 
+      }
+    }
   }
-  else
+
+  if (aogSettings.InclinometerInstalled == 2)
   {
-    Serial.println("CMPS14 init fails!!");
+    DEBUG_PRINT("Initialising CMPS14");
+    // CMPS14 IMU
+    CMPS14initialized = CMPS14_IMU.init();
+    if (CMPS14initialized)
+    {
+      DEBUG_PRINT("CMPS14 software version: "); // print software version
+      DEBUG_PRINT(CMPS14_IMU.softwareVersion);
+      useCMPS = true;
+    }
+    else
+    {
+      Serial.println("CMPS14 init fails!!");
+    }
   }
 
   #if NUMPIXELS > 0
@@ -302,16 +378,42 @@ void loop()
       while (Serial.available() > 0) char t = Serial.read();
       serialResetTimer = 0;
     }
-    
-    // CMPS14 IMU           
-    if (CMPS14initialized)
-    {
-      roll = CMPS14_IMU.getRoll();
-      heading = CMPS14_IMU.getHeading();
 
-      //if not positive when rolling to the right
-      if (aogSettings.InvertRoll)
-        roll *= -1.0;   
+    if (aogSettings.InclinometerInstalled == 1)  // BNO085 IMU 
+    {      
+      if (bno08x.dataAvailable() == true)
+      {
+        bno08xHeading = (bno08x.getYaw()) * 180.0 / PI; // Convert yaw / heading to degrees
+        bno08xHeading = -bno08xHeading; //BNO085 counter clockwise data to clockwise data
+        
+        if (bno08xHeading < 0 && bno08xHeading >= -180) //Scale BNO085 yaw from [-180°;180°] to [0;360°]
+        {
+          bno08xHeading = bno08xHeading + 360;
+        }
+            
+        bno08xRoll = (bno08x.getRoll()) * 180.0 / PI; //Convert roll to degrees
+        bno08xPitch = (bno08x.getPitch())* 180.0 / PI; // Convert pitch to degrees
+
+        //if not positive when rolling to the right
+        if (aogSettings.InvertRoll) { roll *= -1.0; }
+
+        Heading16x = (int)(bno08xHeading * 16);
+        Roll16x = (int)(bno08xRoll * 16);
+      }
+    }
+    if (aogSettings.InclinometerInstalled == 2)  // CMPS14 IMU 
+    {          
+      if (CMPS14initialized)
+      {
+        roll = CMPS14_IMU.getRoll();
+        heading = CMPS14_IMU.getHeading();
+  
+        //if not positive when rolling to the right
+        if (aogSettings.InvertRoll) { roll *= -1.0; }
+
+        Heading16x = (int)(16*heading);
+        Roll16x = (int)(16*roll);
+      }
     }
 
     //read all the switches
@@ -490,15 +592,15 @@ void loop()
 
     //////////////////////////////////////////////////////////////////////////////////////
 
-          //Serial Send to agopenGPS **** you must send 10 numbers ****
+      //Serial Send to agopenGPS **** you must send 10 numbers ****
       Serial.print("127,253,");
       Serial.print((int)(steerAngleActual * 100));  //The actual steering angle in degrees
       Serial.print(",");
       Serial.print((int)(steerAngleSetPoint * 100));  //the setpoint originally sent
       Serial.print(",");
-      Serial.print(heading);  // heading in degrees from CMPS14
+      Serial.print(Heading16x);  // heading in degrees*16 from CMPS14/BNO085
       Serial.print(",");
-      Serial.print(roll);  // roll in degrees from CMPS14
+      Serial.print(Roll16x);  // roll in degrees*16 from CMPS14/BNO085
       Serial.print(",");
       //the status of switch inputs
       Serial.print(switchByte);  //steering switch status 
