@@ -42,7 +42,7 @@ void motorDrive(void)
       //fast set the direction accordingly (this is pin DIR1_RL_ENABLE, port D, 4)
       if (pwmDrive >= 0)  //set the correct direction
       {
-        #if (defined(__AVR_ATmega168__) | defined(__AVR_ATmega328__))   // Abstract diferences between Arduino Nano and the Nucleo 32
+        #if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328P__))   // Abstract diferences between Arduino Nano and the Nucleo 32
         {
           bitSet(PORTD, 4);
         }
@@ -54,7 +54,7 @@ void motorDrive(void)
       }
       else   
       {
-        #if (defined(__AVR_ATmega168__) | defined(__AVR_ATmega328__))   // Abstract diferences between Arduino Nano and the Nucleo 32
+        #if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328P__))   // Abstract diferences between Arduino Nano and the Nucleo 32
         {
           bitClear(PORTD, 4);
         }

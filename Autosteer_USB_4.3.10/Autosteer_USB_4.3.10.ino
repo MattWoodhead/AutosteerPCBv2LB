@@ -188,7 +188,7 @@ void setup()
   DEBUG_PRINT("starting setup");
   
   //PWM rate settings. Set them both the same!!!!
-  #if (defined(__AVR_ATmega168__) | defined(__AVR_ATmega328__))   // Abstract diferences between Arduino Nano and the Nucleo 32
+  #if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328P__))   // Abstract diferences between Arduino Nano and the Nucleo 32
     {
     DEBUG_PRINT("Setting up Nano PWM frequency...  ");
     // if PWM_Frequency == 0 use default nano PWM frequency (490 Hz)
@@ -239,7 +239,7 @@ void setup()
   Wire.begin();
 
   //50Khz I2C
-  #if (defined(__AVR_ATmega168__) | defined(__AVR_ATmega328__))
+  #if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328P__))
   {
     TWBR = 144;
   }
