@@ -207,7 +207,7 @@ void setup()
   }
   #else  // otherwise assume it is an STM32 based board
   {
-    Serial.println("Setting up STM32 frequency...  ");
+    DEBUG_PRINT("Setting up STM32 frequency...  ");
     TIM_TypeDef *Instance1 = (TIM_TypeDef *)pinmap_peripheral(digitalPinToPinName(PWM1_LPWM), PinMap_PWM);
     TIM_TypeDef *Instance2 = (TIM_TypeDef *)pinmap_peripheral(digitalPinToPinName(PWM2_RPWM), PinMap_PWM);
     uint32_t channel1 = STM_PIN_CHANNEL(pinmap_function(digitalPinToPinName(PWM1_LPWM), PinMap_PWM));
@@ -239,15 +239,17 @@ void setup()
   Wire.begin();
 
   //50Khz I2C
+  DEBUG_PRINT("Setting I2C Frequency")
   #if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328P__))
   {
     TWBR = 144;
   }
-//  #else  // If STM32 leave at default 100KHz for now and see how we get on
-//  {
-//    STM32d
-//  }
+  #else  // If STM32 leave at default 100KHz for now and see how we get on
+  {
+    Wire.setClock(100000);
+  }
   #endif
+  DEBUG_PRINT("Done")
 
   //PortB configured as output
   //MCP_Write(0x01,0x00);  
@@ -275,7 +277,8 @@ void setup()
   highLowPerDeg = (steerSettings.highPWM - steerSettings.lowPWM) / LOW_HIGH_DEGREES;
 
   if (aogSettings.InclinometerInstalled == 1)
-  {
+  { 
+    DEBUG_PRINT("Setting up BNo085")
     for(int i = 0; i < nrBNO08xAdresses; i++)
     {
       bno08xAddress = bno08xAddresses[i];
@@ -307,6 +310,7 @@ void setup()
 
             // Break out of loop
             useBNO08x = true;
+            DEBUG_PRINT("Done")
             break;
           }
           else 
