@@ -1,5 +1,6 @@
 # !
 # Version 5.0.0 AOG Arduino Code is WIP!
+The cross track error is currently simulated using a calculation based on the desired steer angle sent from agopengps (the cross track error measurement was removed without warning in V5 of AOG). This should work for following an A-B line but may not perform well on tight corners or u-turns.
 # !
 
 # AutosteerPCBv2LB
