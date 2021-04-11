@@ -124,9 +124,11 @@
   
   //steering variables
   float steerAngleActual = 0;
+  int16_t steerAngleSetMsg = 0;
   float steerAngleSetPoint = 0; //the desired angle from AgOpen
   int steeringPosition = 0; //from steering sensor
   float steerAngleError = 0; //setpoint - actual
+  float distanceFromLine = 0;  // simulated distance from line calculated using steer angle - a bit of a bodge untill distance from line PGN is created
   
   //pwm variables
   int pwmDrive = 0, pwmDisplay = 0;
@@ -496,7 +498,8 @@
         guidanceStatus = Serial.read();
 
         //Bit 8,9    set point steer angle * 100 is sent
-        steerAngleSetPoint = ((float)(Serial.read()| Serial.read() << 8 ))*0.01; //high low bytes
+        steerAngleSetMsg = Serial.read()| Serial.read() << 8;
+        steerAngleSetPoint = ((float)(steerAngleSetMsg))*0.01; //high low bytes
         
         if ((bitRead(guidanceStatus,0) == 0) || (gpsSpeed < 0.5) || (steerSwitch == 1) )
         { 
@@ -712,6 +715,21 @@
     }
     
     #if NUMPIXELS >0
+      if (-100 <= steerAngleSetMsg <= 100)  // steerAngleSetMsg is a 16 bit signed integer which is 100 times the desired steering angle
+      {
+        distanceFromLine = -1*steerAngleSetMsg;
+      }
+      else
+      {
+        if (steerAngleSetMsg < 0)
+        {
+          distanceFromLine = 0.425*steerAngleSetPoint*steerAngleSetPoint + 24*steerAngleSetPoint - 65;
+        }
+        else
+        {
+          distanceFromLine = 0.425*steerAngleSetPoint*steerAngleSetPoint - 24*steerAngleSetPoint - 65;
+        }
+      }
       lightbar(distanceFromLine);
     #endif
     
