@@ -715,7 +715,7 @@
     }
     
     #if NUMPIXELS >0
-      if (-100 <= steerAngleSetMsg <= 100)  // steerAngleSetMsg is a 16 bit signed integer which is 100 times the desired steering angle
+      if ((-100 <= steerAngleSetMsg) && (steerAngleSetMsg <= 100))  // steerAngleSetMsg is a 16 bit signed integer which is 100 times the desired steering angle
       {
         distanceFromLine = -1*steerAngleSetMsg;
       }

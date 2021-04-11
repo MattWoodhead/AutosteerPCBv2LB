@@ -72,18 +72,14 @@ void motorDrive(void)
     
       if (pwmDrive > 0)
       {
-        #ifdef PWM2_RPWM
-          analogWrite(PWM2_RPWM, 0);//Turn off before other one on
-        #endif
+        analogWrite(PWM2_RPWM, 0);//Turn off before other one on
         analogWrite(PWM1_LPWM, pwmDrive);
       }      
       else
       {
         pwmDrive = -1 * pwmDrive;  
         analogWrite(PWM1_LPWM, 0);//Turn off before other one on
-        #ifdef PWM2_RPWM
-          analogWrite(PWM2_RPWM, pwmDrive);
-        #endif
+        analogWrite(PWM2_RPWM, pwmDrive);
       }
       
       pwmDisplay = pwmDrive;
