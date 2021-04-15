@@ -31,7 +31,7 @@
   #define Neopixel_Pin 5                 // Note this clashes with IBT2
   #define mmPerLightbarPixel  20         // 40 = 4cm
 
-  //#define DEBUG  // uncomment this to add serial debug output
+  #define DEBUG  // uncomment this to add serial debug output
   //#define DEBUG_LOOP_TIME  // uncomment this to add serial debug output
 
   // Create DEBUG_PRINT command that only prints to serial if DEBUG is defined at the top of the program
@@ -239,7 +239,7 @@ void setup()
   Wire.begin();
 
   //50Khz I2C
-  DEBUG_PRINT("Setting I2C Frequency")
+  DEBUG_PRINT("Setting I2C Frequency");
   #if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328P__))
   {
     TWBR = 144;
@@ -249,7 +249,7 @@ void setup()
     Wire.setClock(100000);
   }
   #endif
-  DEBUG_PRINT("Done")
+  DEBUG_PRINT("Done");
 
   //PortB configured as output
   //MCP_Write(0x01,0x00);  
@@ -278,7 +278,7 @@ void setup()
 
   if (aogSettings.InclinometerInstalled == 1)
   { 
-    DEBUG_PRINT("Setting up BNo085")
+    DEBUG_PRINT("Setting up BNo085");
     for(int i = 0; i < nrBNO08xAdresses; i++)
     {
       bno08xAddress = bno08xAddresses[i];
@@ -310,7 +310,7 @@ void setup()
 
             // Break out of loop
             useBNO08x = true;
-            DEBUG_PRINT("Done")
+            DEBUG_PRINT("Done");
             break;
           }
           else 
