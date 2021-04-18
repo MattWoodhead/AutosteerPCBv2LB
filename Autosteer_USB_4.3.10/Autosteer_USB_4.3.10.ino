@@ -31,7 +31,7 @@
   #define Neopixel_Pin 5                 // Note this clashes with IBT2
   #define mmPerLightbarPixel  20         // 40 = 4cm
 
-  #define DEBUG  // uncomment this to add serial debug output
+  //#define DEBUG  // uncomment this to add serial debug output
   //#define DEBUG_LOOP_TIME  // uncomment this to add serial debug output
 
   // Create DEBUG_PRINT command that only prints to serial if DEBUG is defined at the top of the program
@@ -207,7 +207,7 @@ void setup()
   }
   #else  // otherwise assume it is an STM32 based board
   {
-    DEBUG_PRINT("Setting up STM32 frequency...  ");
+    DEBUG_PRINT("Setting up STM32 PWM frequency...  ");
     TIM_TypeDef *Instance1 = (TIM_TypeDef *)pinmap_peripheral(digitalPinToPinName(PWM1_LPWM), PinMap_PWM);
     TIM_TypeDef *Instance2 = (TIM_TypeDef *)pinmap_peripheral(digitalPinToPinName(PWM2_RPWM), PinMap_PWM);
     uint32_t channel1 = STM_PIN_CHANNEL(pinmap_function(digitalPinToPinName(PWM1_LPWM), PinMap_PWM));
@@ -238,18 +238,18 @@ void setup()
   //set up communication 
   Wire.begin();
 
-  //50Khz I2C
-  DEBUG_PRINT("Setting I2C Frequency");
-  #if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328P__))
-  {
-    TWBR = 144;
-  }
-  #else  // If STM32 leave at default 100KHz for now and see how we get on
-  {
-    Wire.setClock(100000);
-  }
-  #endif
-  DEBUG_PRINT("Done");
+//  //50Khz I2C
+//  DEBUG_PRINT("Setting I2C Frequency");
+//  #if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328P__))
+//  {
+//    TWBR = 144;
+//  }
+//  #else  // If STM32 leave at default 100KHz for now and see how we get on
+//  {
+//    Wire.setClock(100000);
+//  }
+//  #endif
+//  DEBUG_PRINT("Done");
 
   //PortB configured as output
   //MCP_Write(0x01,0x00);  
@@ -276,77 +276,74 @@ void setup()
   // for PWM High to Low interpolator
   highLowPerDeg = (steerSettings.highPWM - steerSettings.lowPWM) / LOW_HIGH_DEGREES;
 
-  if (aogSettings.InclinometerInstalled == 1)
-  { 
-    DEBUG_PRINT("Setting up BNo085");
-    for(int i = 0; i < nrBNO08xAdresses; i++)
-    {
-      bno08xAddress = bno08xAddresses[i];
-      
-      Serial.print("\r\nChecking for BNO08X on ");
-      Serial.println(bno08xAddress, HEX);
-      Wire.beginTransmission(bno08xAddress);
-      int error = Wire.endTransmission();
-  
-      if (error == 0)
-      {
-        Serial.println("Error = 0");
-        Serial.print("BNO08X ADDRESs: 0x");
-        Serial.println(bno08xAddress, HEX);
-        Serial.println("BNO08X Ok.");
-        
-        // Initialize BNO080 lib        
-        if (bno08x.begin(bno08xAddress))
-        {
-          Wire.setClock(400000); //Increase I2C data rate to 400kHz
 
-          // Use gameRotationVector
-          bno08x.enableGameRotationVector(REPORT_INTERVAL); //Send data update every REPORT_INTERVAL in ms for BNO085
-
-          // Retrieve the getFeatureResponse report to check if Rotation vector report is corectly enable
-          if (bno08x.getFeatureResponseAvailable() == true)
-          {
-            if (bno08x.checkReportEnable(SENSOR_REPORTID_GAME_ROTATION_VECTOR, REPORT_INTERVAL) == false) bno08x.printGetFeatureResponse();
-
-            // Break out of loop
-            useBNO08x = true;
-            DEBUG_PRINT("Done");
-            break;
-          }
-          else 
-          {
-            Serial.println("BNO08x init fails!!");
-          }
-        }
-        else
-        {
-          Serial.println("BNO080 not detected at given I2C address.");
-        }
-      }
-      else 
-      {
-        Serial.println("Error = 4");
-        Serial.println("BNO08X not Connected or Found"); 
-      }
-    }
-  }
-
-  if (aogSettings.InclinometerInstalled == 2)
+  DEBUG_PRINT("Setting up BNo085");
+  for(int i = 0; i < nrBNO08xAdresses; i++)
   {
-    DEBUG_PRINT("Initialising CMPS14");
-    // CMPS14 IMU
-    CMPS14initialized = CMPS14_IMU.init();
-    if (CMPS14initialized)
+    bno08xAddress = bno08xAddresses[i];
+    
+    Serial.print("\r\nChecking for BNO08X on ");
+    Serial.println(bno08xAddress, HEX);
+    Wire.beginTransmission(bno08xAddress);
+    int error = Wire.endTransmission();
+
+    if (error == 0)
     {
-      DEBUG_PRINT("CMPS14 software version: "); // print software version
-      DEBUG_PRINT(CMPS14_IMU.softwareVersion);
-      useCMPS = true;
+      Serial.println("Error = 0");
+      Serial.print("BNO08X ADDRESs: 0x");
+      Serial.println(bno08xAddress, HEX);
+      Serial.println("BNO08X Ok.");
+      
+      // Initialize BNO080 lib        
+      if (bno08x.begin(bno08xAddress))
+      {
+        Wire.setClock(400000); //Increase I2C data rate to 400kHz
+
+        // Use gameRotationVector
+        bno08x.enableGameRotationVector(REPORT_INTERVAL); //Send data update every REPORT_INTERVAL in ms for BNO085
+
+        // Retrieve the getFeatureResponse report to check if Rotation vector report is corectly enable
+        if (bno08x.getFeatureResponseAvailable() == true)
+        {
+          if (bno08x.checkReportEnable(SENSOR_REPORTID_GAME_ROTATION_VECTOR, REPORT_INTERVAL) == false) bno08x.printGetFeatureResponse();
+
+          // Break out of loop
+          useBNO08x = true;
+          DEBUG_PRINT("Done");
+          break;
+        }
+        else 
+        {
+          Serial.println("BNO08x init fails!!");
+        }
+      }
+      else
+      {
+        Serial.println("BNO080 not detected at given I2C address.");
+      }
     }
-    else
+    else 
     {
-      Serial.println("CMPS14 init fails!!");
+      Serial.println("Error = 4");
+      Serial.println("BNO08X not Connected or Found"); 
     }
   }
+
+
+  DEBUG_PRINT("Initialising CMPS14");
+  // CMPS14 IMU
+  CMPS14initialized = CMPS14_IMU.init();
+  if (CMPS14initialized)
+  {
+    DEBUG_PRINT("CMPS14 software version: "); // print software version
+    DEBUG_PRINT(CMPS14_IMU.softwareVersion);
+    useCMPS = true;
+  }
+  else
+  {
+    Serial.println("CMPS14 init fails!!");
+  }
+
 
   #if NUMPIXELS > 0
     pixels.begin();
