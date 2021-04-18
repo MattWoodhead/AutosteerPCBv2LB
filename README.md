@@ -6,6 +6,8 @@ This is a porting of mnltake's lightbar code to the latest version of the AgOpen
 Requires the [Adafruit Neopixel](https://github.com/adafruit/Adafruit_NeoPixel) library (version 1.4 or higher)
 
 **Select your AOG version using the branches in github**
+V4.3.10 - Released
+V5.0.0.X - Beta - Lightbar now based on steer angle (experimental - feedback would be great) due to unannounced removal of distance from line transmission from AOG
 
 ---
 
