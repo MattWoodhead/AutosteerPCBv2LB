@@ -49,9 +49,7 @@
   // BNO08x definitions
   #include "BNO08x_AOG.h"
   #define REPORT_INTERVAL 90 //Report interval in ms (same as the delay at the bottom)
-  const byte bno08xAddresses[] = {0x4A,0x4B};
-  const int nrBNO08xAdresses = sizeof(bno08xAddresses)/sizeof(bno08xAddresses[0]);
-  byte bno08xAddress;
+  byte bno08xAddress = 0x4A;
   BNO080 bno08x;
   float bno08xHeading = 0;
   float bno08xRoll = 0;
@@ -95,19 +93,10 @@
   #define WORKSW_ENABLE_PIN 8  //PB0
   #define WORK_LED_PIN 2  //PD2
 
-  // MCP23017 I2C address is 0x20(32)
-  #define Addr 0x20
-  #define PortA 0x12
-  #define PortB 0x13
-
   #include <Wire.h>
-  #include <EEPROM.h> 
   #include "zADS1015.h"
   Adafruit_ADS1115 ads;     // Use this for the 16-bit version ADS1115
-
-  #include "CMPS14_AOG.h"  // I have replaced inclinometer = 2 with the CMPS14 module instead of the GY MMA845x module
-  CMPS14 CMPS14_IMU(CMPS14_ADDRESS);
-  
+ 
   //loop time variables in microseconds  
   const unsigned int LOOP_TIME = 40;      
   unsigned long lastTime = LOOP_TIME;
@@ -161,15 +150,10 @@
       byte InvertRoll = 0;
       byte MotorDriveDirection = 0;
       byte SingleInputWAS = 1;
-      byte CytronDriver = 0;
+      byte CytronDriver = 1;
       byte SteerSwitch = 0;
       byte UseMMA_X_Axis = 0;
       byte ShaftEncoder = 0;
-      
-      byte BNOInstalled = 0;
-      byte InclinometerInstalled = 2;   // set to 0 for none
-                                        // set to 1 if BNO085 (DOGS2 in AOG)
-                                        // set to 2 for CMPS14 (MMA8452 in AOG)
       byte maxSteerSpeed = 20;
       byte minSteerSpeed = 1;
       byte PulseCountMax = 5; 
@@ -238,52 +222,13 @@ void setup()
   //set up communication 
   Wire.begin();
 
-//  //50Khz I2C
-//  DEBUG_PRINT("Setting I2C Frequency");
-//  #if (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328P__))
-//  {
-//    TWBR = 144;
-//  }
-//  #else  // If STM32 leave at default 100KHz for now and see how we get on
-//  {
-//    Wire.setClock(100000);
-//  }
-//  #endif
-//  DEBUG_PRINT("Done");
-
-  //PortB configured as output
-  //MCP_Write(0x01,0x00);  
   delay(300);
 
-  DEBUG_PRINT("Reading EEPROM/FLASH...  ");
-  EEPROM.get(0, EEread);              // read identifier
-    
-  if (EEread != EEP_Ident)   // check on first start and write EEPROM
-  {           
-    EEPROM.put(0, EEP_Ident);
-    EEPROM.put(2, WAS_ZERO);
-    EEPROM.put(10, steerSettings);   
-    EEPROM.put(40, aogSettings);
-  }
-  else 
-  { 
-    //EEPROM.get(2, EEread);            // read SteerPosZero
-    EEPROM.get(10, steerSettings);     // read the Settings
-    EEPROM.get(40, aogSettings);
-  }
-  DEBUG_PRINT("Done");
-  
   // for PWM High to Low interpolator
   highLowPerDeg = (steerSettings.highPWM - steerSettings.lowPWM) / LOW_HIGH_DEGREES;
 
 
   DEBUG_PRINT("Setting up BNo085");
-  for(int i = 0; i < nrBNO08xAdresses; i++)
-  {
-    bno08xAddress = bno08xAddresses[i];
-    
-    Serial.print("\r\nChecking for BNO08X on ");
-    Serial.println(bno08xAddress, HEX);
     Wire.beginTransmission(bno08xAddress);
     int error = Wire.endTransmission();
 
@@ -309,40 +254,23 @@ void setup()
 
           // Break out of loop
           useBNO08x = true;
-          DEBUG_PRINT("Done");
-          break;
         }
         else 
         {
-          Serial.println("BNO08x init fails!!");
+          Serial.println("BNo085 init fails!!");
         }
       }
       else
       {
-        Serial.println("BNO080 not detected at given I2C address.");
+        Serial.println("BNo085 not detected at given I2C address.");
       }
     }
     else 
     {
-      Serial.println("Error = 4");
+      Serial.print("BNo085 Error = ");
+      Serial.println(error);
       Serial.println("BNO08X not Connected or Found"); 
     }
-  }
-
-
-  DEBUG_PRINT("Initialising CMPS14");
-  // CMPS14 IMU
-  CMPS14initialized = CMPS14_IMU.init();
-  if (CMPS14initialized)
-  {
-    DEBUG_PRINT("CMPS14 software version: "); // print software version
-    DEBUG_PRINT(CMPS14_IMU.softwareVersion);
-    useCMPS = true;
-  }
-  else
-  {
-    Serial.println("CMPS14 init fails!!");
-  }
 
 
   #if NUMPIXELS > 0
@@ -379,42 +307,27 @@ void loop()
       serialResetTimer = 0;
     }
 
-    if (useBNO08x)  // BNO085 IMU 
-    {      
-      if (bno08x.dataAvailable() == true)
-      {
-        bno08xHeading = (bno08x.getYaw()) * 180.0 / PI; // Convert yaw / heading to degrees
-        bno08xHeading = -bno08xHeading; //BNO085 counter clockwise data to clockwise data
-        
-        if (bno08xHeading < 0 && bno08xHeading >= -180) //Scale BNO085 yaw from [-180°;180°] to [0;360°]
-        {
-          bno08xHeading = bno08xHeading + 360;
-        }
-            
-        bno08xRoll = (bno08x.getRoll()) * 180.0 / PI; //Convert roll to degrees
-        bno08xPitch = (bno08x.getPitch())* 180.0 / PI; // Convert pitch to degrees
-
-        //if not positive when rolling to the right
-        if (aogSettings.InvertRoll) { roll *= -1.0; }
-
-        Heading16x = (int)(bno08xHeading * 16);
-        Roll16x = (int)(bno08xRoll * 16);
-      }
-    }
-    if (useCMPS && !useBNO08x)  // CMPS14 IMU 
-    {          
-      if (CMPS14initialized)
-      {
-        roll = CMPS14_IMU.getRoll();
-        heading = CMPS14_IMU.getHeading();
   
-        //if not positive when rolling to the right
-        if (aogSettings.InvertRoll) { roll *= -1.0; }
-
-        Heading16x = (int)(16*heading);
-        Roll16x = (int)(16*roll);
+    if (bno08x.dataAvailable() == true)
+    {
+      bno08xHeading = (bno08x.getYaw()) * 180.0 / PI; // Convert yaw / heading to degrees
+      bno08xHeading = -bno08xHeading; //BNO085 counter clockwise data to clockwise data
+      
+      if (bno08xHeading < 0 && bno08xHeading >= -180) //Scale BNO085 yaw from [-180°;180°] to [0;360°]
+      {
+        bno08xHeading = bno08xHeading + 360;
       }
+          
+      bno08xRoll = (bno08x.getRoll()) * 180.0 / PI; //Convert roll to degrees
+      bno08xPitch = (bno08x.getPitch())* 180.0 / PI; // Convert pitch to degrees
+
+      //if not positive when rolling to the right
+      if (aogSettings.InvertRoll) { roll *= -1.0; }
+
+      Heading16x = (int)(bno08xHeading * 16);
+      Roll16x = (int)(bno08xRoll * 16);
     }
+
 
     //read all the switches
     workSwitchEnabled = digitalRead(WORKSW_ENABLE_PIN);
@@ -458,16 +371,7 @@ void loop()
     switchByte |= (remoteSwitch << 2); //put remote in bit 2
     switchByte |= (steerSwitch << 1);   //put steerswitch status in bit 1 position
     switchByte |= workSwitch;
-
-    /*
-    #if Relay_Type == 1
-        SetRelays();       //turn on off section relays
-    #elif Relay_Type == 2
-        SetuTurnRelays();  //turn on off uTurn relays
-    #endif
-    */
-    //MCP_Write(PortB,relay);   
-  
+ 
     //get steering position       
     if (aogSettings.SingleInputWAS)   //Single Input ADS
     {
@@ -651,8 +555,8 @@ void loop()
     reed = Serial.read();
     checksum += reed;
     sett = reed;  //setting1     
-    if (bitRead(sett,0)) aogSettings.BNOInstalled = 1; else aogSettings.BNOInstalled = 0;
-    if (bitRead(sett,1)) aogSettings.isRelayActiveHigh = 1; else aogSettings.isRelayActiveHigh = 0;
+    //if (bitRead(sett,0)) aogSettings.BNOInstalled = 1; else aogSettings.BNOInstalled = 0;
+    //if (bitRead(sett,1)) aogSettings.isRelayActiveHigh = 1; else aogSettings.isRelayActiveHigh = 0;
 
     reed = Serial.read();
     checksum += reed;
@@ -665,8 +569,8 @@ void loop()
     reed = Serial.read();
     checksum += reed;
     byte inc = reed;
-    aogSettings.InclinometerInstalled = inc & 192;
-    aogSettings.InclinometerInstalled = aogSettings.InclinometerInstalled >> 6;
+    //aogSettings.InclinometerInstalled = inc & 192;
+    //aogSettings.InclinometerInstalled = aogSettings.InclinometerInstalled >> 6;
     aogSettings.PulseCountMax = inc & 63;
 
     reed = Serial.read();
@@ -678,11 +582,7 @@ void loop()
     
     //send usbData back - version number etc. 
     SendTwoThirty((byte)checksum);
-
-    EEPROM.put(40, aogSettings);
     
-    //reset the arduino
-    resetFunc();
   }
     
   //Settings Header has been found, 8 bytes are the settings
@@ -728,7 +628,7 @@ void loop()
     //send usbData back - version number. 
     SendTwoThirty((byte)checksum);
     
-    EEPROM.put(10, steerSettings);
+    //EEPROM.put(10, steerSettings);
     
     // for PWM High to Low interpolator
     highLowPerDeg = (steerSettings.highPWM - steerSettings.lowPWM) / LOW_HIGH_DEGREES;
