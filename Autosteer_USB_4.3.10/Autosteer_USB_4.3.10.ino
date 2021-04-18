@@ -379,7 +379,7 @@ void loop()
       serialResetTimer = 0;
     }
 
-    if (aogSettings.InclinometerInstalled == 1)  // BNO085 IMU 
+    if (useBNO08x)  // BNO085 IMU 
     {      
       if (bno08x.dataAvailable() == true)
       {
@@ -401,7 +401,7 @@ void loop()
         Roll16x = (int)(bno08xRoll * 16);
       }
     }
-    if (aogSettings.InclinometerInstalled == 2)  // CMPS14 IMU 
+    if (useCMPS && !useBNO08x)  // CMPS14 IMU 
     {          
       if (CMPS14initialized)
       {
