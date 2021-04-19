@@ -9,7 +9,7 @@ Requires the [Adafruit Neopixel](https://github.com/adafruit/Adafruit_NeoPixel) 
 
 * V4.3.10 - Released
 
-* V5.0.0.X - Beta - Lightbar now based on steer angle (experimental - feedback would be great) due to unannounced removal of distance from line transmission from AOG
+* V5.0.0.X - Beta - Lightbar now based on steer angle (experimental - feedback would be great) due to removal of distance from line transmission from AOG
 
 ---
 
