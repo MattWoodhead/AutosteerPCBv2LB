@@ -16,8 +16,19 @@
    *   3921hz = 2
    */
   #define PWM_Frequency 0
-  
+
+  #define NUMPIXELS   13                 // Odd number dont use =0 
+  #define Neopixel_Pin 9                 // Set this to the pin number you are using for the Neopixel strip controll line
+  #define cmPerLightbarPixel  2          // Must be a multiple of 2 cm
+
 /////////////////////////////////////////////
+
+  #if NUMPIXELS > 0
+    #include <Adafruit_NeoPixel.h>
+    Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, Neopixel_Pin, NEO_GRB + NEO_KHZ800);
+    const byte centerpixel = (NUMPIXELS-1)/2;
+    byte levelcolor[NUMPIXELS][3];
+  #endif
 
   // if not in eeprom, overwrite 
   #define EEP_Ident 5100 
@@ -102,7 +113,7 @@
   //Relays
   bool isRelayActiveHigh = true;
   uint8_t relay = 0, relayHi = 0, uTurn = 0;
-  uint8_t tram = 0;
+  uint8_t distanceFromLine = 0;  // cross track error - Autosteer PGN byte 10
   
   //Switches
   uint8_t remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0;
@@ -286,6 +297,17 @@
 
     adc.setSampleRate(ADS1115_REG_CONFIG_DR_128SPS); //128 samples per second
     adc.setGain(ADS1115_REG_CONFIG_PGA_6_144V);
+
+  #if NUMPIXELS > 0
+    pixels.begin();
+    for (int i =0 ;i < centerpixel;i++){ //Right
+      levelcolor[i][0]=0; levelcolor[i][1]=255; levelcolor[i][2]=0; //Green
+    }
+    for (int i = centerpixel+1;i < NUMPIXELS;i++){ //Left
+      levelcolor[i][0]=255; levelcolor[i][1]=0; levelcolor[i][2]=0; //Red
+    }
+    levelcolor[centerpixel][0]=20;levelcolor[centerpixel][1]=0;levelcolor[centerpixel][2]=20;  // Center Magenta = waiting for AOG
+  #endif
 
   }// End of Setup
 
@@ -536,8 +558,8 @@
           watchdogTimer = 0;  //reset watchdog
         }
         
-        //Bit 10 Tram 
-        tram = Serial.read();
+        //Bit 10 Distance from line (cross track error)
+        distanceFromLine = Serial.read();
         
         //Bit 11 section 1 to 8
         relay = Serial.read();
@@ -743,6 +765,10 @@
         if ( lastEnc) EncoderFunc();
       }
     }
+
+  #if NUMPIXELS >0
+    lightbar(distanceFromLine);
+  #endif
     
   } // end of main loop
 
@@ -755,6 +781,26 @@
         encEnable = false;
      }            
   }
+
+#if NUMPIXELS >0
+  void lightbar(uint8_t distanceFromLine)
+  {
+  int8_t cross_track_error = ((int8_t)distanceFromLine) - 127;
+  int8_t level = constrain(cross_track_error/cmPerLightbarPixel, -centerpixel, centerpixel);
+  uint8_t n = level + centerpixel;
+    for (int8_t i = 0 ;i < NUMPIXELS; i++){
+      if ( (i == centerpixel && i == n)|| //Center
+           (level < 0 && i >= n && i < centerpixel && distanceFromLine != 255)|| //Right Bar
+           (level > 0 && i <= n && i > centerpixel && distanceFromLine != 255) ) //Left Bar
+      {
+        pixels.setPixelColor(i,levelcolor[i][0],levelcolor[i][1],levelcolor[i][2]);
+      }else{
+        pixels.setPixelColor(i,0,0,0);//Clear
+      }
+    }
+  pixels.show();
+  }
+#endif
 
   //TCCR2B = TCCR2B & B11111000 | B00000001;    // set timer 2 divisor to     1 for PWM frequency of 31372.55 Hz
   //TCCR2B = TCCR2B & B11111000 | B00000010;    // set timer 2 divisor to     8 for PWM frequency of  3921.16 Hz
