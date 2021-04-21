@@ -1,14 +1,14 @@
 # AutosteerPCBv2LB
 forked from  mnltake/AutosteerPCBv2LB
 
-This is a porting of mnltake's lightbar code to the latest version of the AgOpenGPS machine code (4.3.10).
+This is a porting of mnltake's lightbar code to the latest version of the AgOpenGPS machine code (5.1.2+).
 
 Requires the [Adafruit Neopixel](https://github.com/adafruit/Adafruit_NeoPixel) library (version 1.4 or higher)
 
 **Select your AOG version using the branches in github**
 
 * V5.1 - WIP - Not yet tested
-* V4.3.10 - Released
+* V4.3.10 - Released (Legacy AOG installations)
 
 ---
 
