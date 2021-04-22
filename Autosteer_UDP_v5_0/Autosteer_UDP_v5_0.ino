@@ -20,7 +20,9 @@
 
   #define NUMPIXELS   13                 // Odd number dont use =0 
   #define Neopixel_Pin 9                 // Set this to the pin number you are using for the Neopixel strip controll line
+  #define Neopixel_Brightness 150        // brightness value between 0 and 255
   #define cmPerLightbarPixel  2          // Must be a multiple of 2 cm
+  #define cmPerDistInt 2 // The number of centimeters represented by a change in 1 of the AOG cross track error byte
 
   /////////////////////////////////////////////
 
@@ -140,7 +142,7 @@
   //Relays
   bool isRelayActiveHigh = true;
   uint8_t relay = 0, relayHi = 0, uTurn = 0;
-  uint8_t distanceFromLine = 0;  // cross track error - Autosteer PGN byte 10
+  uint8_t distanceFromLine = 255;  // cross track error - Autosteer PGN byte 10. Start at 255 so it is ignored untill a value is received from AOG
     
   //Switches
   uint8_t remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0;
@@ -340,12 +342,12 @@
   #if NUMPIXELS > 0
     pixels.begin();
     for (int i =0 ;i < centerpixel;i++){ //Right
-      levelcolor[i][0]=0; levelcolor[i][1]=255; levelcolor[i][2]=0; //Green
+      levelcolor[i][0]=0; levelcolor[i][1]=Neopixel_Brightness; levelcolor[i][2]=0; //Green
     }
     for (int i = centerpixel+1;i < NUMPIXELS;i++){ //Left
-      levelcolor[i][0]=255; levelcolor[i][1]=0; levelcolor[i][2]=0; //Red
+      levelcolor[i][0]=Neopixel_Brightness; levelcolor[i][1]=0; levelcolor[i][2]=0; //Red
     }
-    levelcolor[centerpixel][0]=20;levelcolor[centerpixel][1]=0;levelcolor[centerpixel][2]=20;  // Center Magenta = waiting for AOG
+    levelcolor[centerpixel][0]=15;levelcolor[centerpixel][1]=15;levelcolor[centerpixel][2]=0; //Yellow
   #endif
 
   }// End of Setup
@@ -798,7 +800,8 @@ void udpSteerRecv(uint16_t dest_port, uint8_t src_ip[IP_LEN], uint16_t src_port,
   void lightbar(uint8_t distanceFromLine)
   {
   int8_t cross_track_error = ((int8_t)distanceFromLine) - 127;
-  int8_t level = constrain(cross_track_error/cmPerLightbarPixel, -centerpixel, centerpixel);
+  const int8_t cmPerLBPixel = cmPerLightbarPixel / cmPerDistInt;
+  int8_t level = constrain(cross_track_error/cmPerLBPixel, -centerpixel, centerpixel);
   uint8_t n = level + centerpixel;
     for (int8_t i = 0 ;i < NUMPIXELS; i++){
       if ( (i == centerpixel && i == n)|| //Center
