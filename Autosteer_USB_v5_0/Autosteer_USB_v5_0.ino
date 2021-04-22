@@ -20,7 +20,8 @@
   #define NUMPIXELS   13                 // Odd number dont use =0 
   #define Neopixel_Pin 9                 // Set this to the pin number you are using for the Neopixel strip controll line
   #define Neopixel_Brightness 150        // brightness value between 0 and 255
-  #define cmPerLightbarPixel  2          // Must be a multiple of 2 cm
+  #define cmPerLightbarPixel  2          // Must be a multiple of cmPerDistInt
+  #define cmPerDistInt  2                // The number of centimeters represented by a change in 1 of the AOG cross track error byte
 
 /////////////////////////////////////////////
 
@@ -307,7 +308,7 @@
     for (int i = centerpixel+1;i < NUMPIXELS;i++){ //Left
       levelcolor[i][0]=Neopixel_Brightness; levelcolor[i][1]=0; levelcolor[i][2]=0; //Red
     }
-    levelcolor[centerpixel][0]=10;levelcolor[centerpixel][1]=10;levelcolor[centerpixel][2]=0;
+    levelcolor[centerpixel][0]=10;levelcolor[centerpixel][1]=10;levelcolor[centerpixel][2]=0;  //Yellow
   #endif
 
   }// End of Setup
@@ -787,7 +788,8 @@
   void lightbar(uint8_t distanceFromLine)
   {
   int8_t cross_track_error = ((int8_t)distanceFromLine) - 127;
-  int8_t level = constrain(cross_track_error/cmPerLightbarPixel, -centerpixel, centerpixel);
+  const int8_t cmPerLBPixel = cmPerLightbarPixel / cmPerDistInt;
+  int8_t level = constrain(cross_track_error/cmPerLBPixel, -centerpixel, centerpixel);
   uint8_t n = level + centerpixel;
     for (int8_t i = 0 ;i < NUMPIXELS; i++){
       if ( (i == centerpixel && i == n)|| //Center
