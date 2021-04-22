@@ -19,6 +19,7 @@
 
   #define NUMPIXELS   13                 // Odd number dont use =0 
   #define Neopixel_Pin 9                 // Set this to the pin number you are using for the Neopixel strip controll line
+  #define Neopixel_Brightness 150        // brightness value between 0 and 255
   #define cmPerLightbarPixel  2          // Must be a multiple of 2 cm
 
 /////////////////////////////////////////////
@@ -113,7 +114,7 @@
   //Relays
   bool isRelayActiveHigh = true;
   uint8_t relay = 0, relayHi = 0, uTurn = 0;
-  uint8_t distanceFromLine = 0;  // cross track error - Autosteer PGN byte 10
+  uint8_t distanceFromLine = 255;  // cross track error - Autosteer PGN byte 10. Start at 255 so it is ignored untill a value is received from AOG
   
   //Switches
   uint8_t remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0;
@@ -301,12 +302,12 @@
   #if NUMPIXELS > 0
     pixels.begin();
     for (int i =0 ;i < centerpixel;i++){ //Right
-      levelcolor[i][0]=0; levelcolor[i][1]=255; levelcolor[i][2]=0; //Green
+      levelcolor[i][0]=0; levelcolor[i][1]=Neopixel_Brightness; levelcolor[i][2]=0; //Green
     }
     for (int i = centerpixel+1;i < NUMPIXELS;i++){ //Left
-      levelcolor[i][0]=255; levelcolor[i][1]=0; levelcolor[i][2]=0; //Red
+      levelcolor[i][0]=Neopixel_Brightness; levelcolor[i][1]=0; levelcolor[i][2]=0; //Red
     }
-    levelcolor[centerpixel][0]=20;levelcolor[centerpixel][1]=0;levelcolor[centerpixel][2]=20;  // Center Magenta = waiting for AOG
+    levelcolor[centerpixel][0]=10;levelcolor[centerpixel][1]=10;levelcolor[centerpixel][2]=0;
   #endif
 
   }// End of Setup
