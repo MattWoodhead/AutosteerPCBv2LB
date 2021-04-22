@@ -7,7 +7,7 @@ Requires the [Adafruit Neopixel](https://github.com/adafruit/Adafruit_NeoPixel) 
 
 **Select your AOG version using the branches in github**
 
-* V5.1 - WIP - Not yet tested
+* V5.1 - Released (Latest AOG version)
 * V4.3.10 - Released (Legacy AOG installations)
 
 ---
