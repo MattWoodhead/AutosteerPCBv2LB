@@ -30,6 +30,13 @@
     Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, Neopixel_Pin, NEO_GRB + NEO_KHZ800);
     const byte centerpixel = (NUMPIXELS-1)/2;
     byte levelcolor[NUMPIXELS][3];
+    uint8_t prevDistFromLine = 0;  // Used to only send the lightbar data if the distance has changed
+    uint8_t loopsSinceDistChanged = 0;
+    #if NUMPIXELS > 40
+      uint8_t loopsBetweenLBUpdates = 1;  // When there are many pixels wait a loop between updates 
+    #else
+      uint8_t loopsBetweenLBUpdates = 0;
+    #endif
   #endif
 
   // if not in eeprom, overwrite 
@@ -116,7 +123,6 @@
   bool isRelayActiveHigh = true;
   uint8_t relay = 0, relayHi = 0, uTurn = 0;
   uint8_t distanceFromLine = 255;  // cross track error - Autosteer PGN byte 10. Start at 255 so it is ignored untill a value is received from AOG
-  uint8_t prevDistFromLine = 0;  // Used to only send the lightbar data if the distance has changed
   
   //Switches
   uint8_t remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0;
@@ -769,11 +775,19 @@
       }
     }
 
-    #if NUMPIXELS >0
+    #if NUMPIXELS > 0
       if (distanceFromLine != prevDistFromLine)  // only update the lightbar if it has changed
       {
-        lightbar(distanceFromLine);
-        prevDistFromLine = distanceFromLine;  // set the previous XTE value to the one we have just used for next time
+        if (loopsSinceDistChanged < loopsBetweenLBUpdates)
+        {
+          loopsSinceDistChanged++;
+        }
+        else
+        {
+          lightbar(distanceFromLine);
+          prevDistFromLine = distanceFromLine;  // set the previous XTE value to the one we have just used for next time
+          loopsSinceDistChanged = 0;
+        }
       }
     #endif
 
@@ -811,6 +825,9 @@
     }
   pixels.show();
   delayMicroseconds(50);  // tiny delay after sending the colours to allow the colours to latch in the LEDs
+  #if NUMPIXELS > 40
+    delayMicroseconds(50);  // more delay for big neopixel strings
+  #endif
   }
 #endif
 
