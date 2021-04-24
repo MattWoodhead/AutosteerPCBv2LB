@@ -143,6 +143,7 @@
   bool isRelayActiveHigh = true;
   uint8_t relay = 0, relayHi = 0, uTurn = 0;
   uint8_t distanceFromLine = 255;  // cross track error - Autosteer PGN byte 10. Start at 255 so it is ignored untill a value is received from AOG
+  uint8_t prevDistFromLine = 0;  // Used to only send the lightbar data if the distance has changed
     
   //Switches
   uint8_t remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0;
@@ -571,9 +572,13 @@
       }
     }
 
-  #if NUMPIXELS >0
-    lightbar(distanceFromLine);
-  #endif
+    #if NUMPIXELS >0
+      if (distanceFromLine != prevDistFromLine)  // only update the lightbar if it has changed
+      {
+        lightbar(distanceFromLine);
+        prevDistFromLine = distanceFromLine;  // set the previous XTE value to the one we have just used for next time
+      }
+    #endif
       
   } // end of main loop
 
@@ -799,20 +804,24 @@ void udpSteerRecv(uint16_t dest_port, uint8_t src_ip[IP_LEN], uint16_t src_port,
 #if NUMPIXELS >0
   void lightbar(uint8_t distanceFromLine)
   {
-  int8_t cross_track_error = ((int8_t)distanceFromLine) - 127;
-  const int8_t cmPerLBPixel = cmPerLightbarPixel / cmPerDistInt;
-  int8_t level = constrain(cross_track_error/cmPerLBPixel, -centerpixel, centerpixel);
-  uint8_t n = level + centerpixel;
-    for (int8_t i = 0 ;i < NUMPIXELS; i++){
-      if ( (i == centerpixel && i == n)|| //Center
-           (level < 0 && i >= n && i < centerpixel && distanceFromLine != 255)|| //Right Bar
-           (level > 0 && i <= n && i > centerpixel && distanceFromLine != 255) ) //Left Bar
+  int8_t cross_track_error = distanceFromLine - 127;
+  const uint8_t cmPerLBPixel = cmPerLightbarPixel / cmPerDistInt;
+  int8_t level = constrain((int8_t)(cross_track_error/cmPerLBPixel), -centerpixel, centerpixel);
+  int8_t n = level + centerpixel;
+  Serial.println(n);
+  for (uint8_t i = 0 ; i < NUMPIXELS; i++)
+    {
+      if ( (i == centerpixel && i == n) || //Center
+           (level < 0 && i >= n && i < centerpixel && (distanceFromLine != 255)) || //Right Bar
+           (level > 0 && i <= n && i > centerpixel && (distanceFromLine != 255))  //Left Bar
+          )
       {
-        pixels.setPixelColor(i,levelcolor[i][0],levelcolor[i][1],levelcolor[i][2]);
+        pixels.setPixelColor(i, levelcolor[i][0], levelcolor[i][1], levelcolor[i][2]);
       }else{
-        pixels.setPixelColor(i,0,0,0);//Clear
+        pixels.setPixelColor(i, 0, 0, 0);//Clear
       }
     }
   pixels.show();
+  delayMicroseconds(50);  // tiny delay after sending the colours to allow the colours to latch in the LEDs
   }
 #endif
